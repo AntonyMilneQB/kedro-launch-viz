@@ -4,7 +4,7 @@ from functools import partial
 from typing import Any, Dict, Optional
 
 from kedro_viz.server import run_server
-from kedro_viz.launchers.jupyter import _wait_for, _allocate_port, _check_viz_up
+from kedro_viz.launchers.jupyter import _allocate_port
 
 _VIZ_PROCESSES: Dict[str, int] = {}
 
@@ -59,8 +59,6 @@ def launch_viz(port: int = None, line=None, local_ns=None) -> None:
 
     viz_process.start()
     _VIZ_PROCESSES[port] = viz_process
-
-    _wait_for(func=_check_viz_up, port=port)
 
     dbutils = _get_dbutils()
     if not dbutils:
