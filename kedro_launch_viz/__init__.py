@@ -47,11 +47,9 @@ def launch_viz(port: int = None, line=None, local_ns=None) -> None:
     if port in _VIZ_PROCESSES and _VIZ_PROCESSES[port].is_alive():
         _VIZ_PROCESSES[port].terminate()
 
-    if local_ns is not None and "default_project_path" in local_ns:  # pragma: no cover
-        target = partial(run_server, project_path=local_ns["default_project_path"])
-        # NOTE default_project_path
-    else:
-        target = run_server
+    from kedro.extras.extensions.ipython import default_project_path
+
+    target = partial(run_server, project_path=default_project_path)
 
     viz_process = multiprocessing.Process(
         target=target, daemon=True, kwargs={"port": port}
