@@ -1,8 +1,13 @@
 import logging
-from typing import Any, Optional
+import multiprocessing
+from functools import partial
+from typing import Any, Dict, Optional
 
 from kedro_viz.server import run_server
-from kedro_viz.launchers.jupyter import _wait_for, _allocate_port, _check_viz_up
+from kedro_viz.launchers.jupyter import _allocate_port
+
+_VIZ_PROCESSES: Dict[str, int] = {}
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +43,20 @@ def launch_viz(port: int = None, line=None, local_ns=None) -> None:
     """
     port = port or 4141  # Default argument doesn't work in Jupyter line magic.
     port = _allocate_port(start_at=port)
+
+    if port in _VIZ_PROCESSES and _VIZ_PROCESSES[port].is_alive():
+        _VIZ_PROCESSES[port].terminate()
+
     from kedro.extras.extensions.ipython import default_project_path
 
+    target = partial(run_server, project_path=default_project_path, host="0.0.0.0")
+
+    viz_process = multiprocessing.Process(
+        target=target, daemon=True, kwargs={"port": port}
+    )
+
+    viz_process.start()
+    _VIZ_PROCESSES[port] = viz_process
 
     dbutils = _get_dbutils()
     if not dbutils:
@@ -55,8 +72,6 @@ def launch_viz(port: int = None, line=None, local_ns=None) -> None:
     except EnvironmentError:
         print("Launch Kedro-Viz:", url)
 
-
-    run_server(project_path=default_project_path)
 
 def get(dbutils, thing):
     return getattr(
