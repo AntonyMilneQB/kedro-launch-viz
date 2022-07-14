@@ -40,7 +40,6 @@ def launch_viz(port: int = None, line=None, local_ns=None) -> None:
     port = _allocate_port(start_at=port)
     from kedro.extras.extensions.ipython import default_project_path
 
-    run_server(project_path=default_project_path)
 
     dbutils = _get_dbutils()
     if not dbutils:
@@ -56,6 +55,8 @@ def launch_viz(port: int = None, line=None, local_ns=None) -> None:
     except EnvironmentError:
         print("Launch Kedro-Viz:", url)
 
+
+    run_server(project_path=default_project_path)
 
 def get(dbutils, thing):
     return getattr(
