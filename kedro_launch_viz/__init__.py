@@ -58,20 +58,19 @@ def launch_viz(port: int = None, line=None, local_ns=None) -> None:
     viz_process.start()
     _VIZ_PROCESSES[port] = viz_process
 
-    dbutils = _get_dbutils()
-    if not dbutils:
-        raise Exception("Cannot find dbutils.")
+    env = which_env()
+    url = make_url(env, port)
 
-    browser_host_name = get(dbutils, "browserHostName")
-    workspace_id = get(dbutils, "workspaceId")
-    cluster_id = get(dbutils, "clusterId")
-
-    url = f"https://{browser_host_name}/driver-proxy/o/{workspace_id}/{cluster_id}/{port}/"
-    try:
-        display_html(f"<a href='{url}'>Launch Kedro-Viz</a>")
-    except EnvironmentError:
-        print("Launch Kedro-Viz:", url)
-
+    if env == "db":
+        try:
+            display_html(f"<a href='{url}'>Launch Kedro-Viz</a>")
+        except EnvironmentError:
+            print("Launch Kedro-Viz:", url)
+    elif env == "jupyter":
+        from IPython.display import display, HTML
+        display(HTML(f"<a href='{url}'>Launch Kedro-Viz</a>"))
+    else:
+        print("Viz process launched but can't generate URL")
 
 def get(dbutils, thing):
     return getattr(
@@ -95,3 +94,49 @@ def display_html(html: str) -> None:
         if all(v in global_names for v in ["displayHTML", "display", "spark"]):
             return frame.frame.f_globals["displayHTML"](html)
     raise EnvironmentError("Unable to detect displayHTML function")
+
+
+def jupyter_server_proxy():
+    return {
+        "command": ["kedro", "viz", "--port", "{port}", "--autoreload", "--no-browser"],
+        "timeout": 20,
+        "launcher_entry": {
+            "icon_path": "/Users/antony_milne/Downloads/logo-64x64.svg",
+            "title": "Kedro-Viz",
+        },
+    }
+
+def which_env():
+    dbutils = _get_dbutils()
+    if dbutils:
+        return "db"
+
+    try:
+        # Need to check if jupyter server proxy installed
+        from notebook import notebookapp
+        return "jupyter"
+    except:
+        return None
+
+def make_url(env, port):
+
+    if env == "db":
+        dbutils = _get_dbutils()
+        browser_host_name = get(dbutils, "browserHostName")
+        workspace_id = get(dbutils, "workspaceId")
+        cluster_id = get(dbutils, "clusterId")
+
+        return f"https://{browser_host_name}/driver-proxy/o/{workspace_id}/{cluster_id}/{port}/"
+
+    elif env == "jupyter":
+        # N
+        # NOTE this won't work in general: https://stackoverflow.com/questions/65475868/get-base-url-of-current-jupyter-server-ipython-is-connected-to
+        from notebook import notebookapp
+        from urllib.parse import urljoin
+        # can we use `/kedro_viz` address rather than port? Should be possible because this route requires jupyter server proxy to work.
+        return urljoin(list(notebookapp.list_running_servers())[0]["url"], f"proxy/{port}/")
+
+
+    return None
+
+
